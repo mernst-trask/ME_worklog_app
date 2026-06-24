@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Worklog",
+    "slug": "worklog-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.worklog"
+    },
+    "android": {
+      "package": "com.yourcompany.worklog",
+      "adaptiveIcon": {
+        "backgroundColor": "#1B1F2A"
+      }
+    }
+  }
+}
