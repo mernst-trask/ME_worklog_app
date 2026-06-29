@@ -1,6 +1,6 @@
 // Change this if your backend runs somewhere other than localhost during development,
 // or to your deployed backend URL in production.
-const API_BASE_URL = 'http://localhost:4000';
+const API_BASE_URL = 'https://shiny-meme-wrqvjq46qp6j39rjg-4000.app.github.dev';
 
 const TOKEN_KEY = 'worklog_admin_token';
 
@@ -39,6 +39,8 @@ export const api = {
   workers: () => request('/api/workers'),
   addWorker: (name, email, password) =>
     request('/api/workers', { method: 'POST', body: { name, email, password } }),
+  resetWorkerPassword: (id, password) =>
+    request(`/api/workers/${id}/password`, { method: 'PATCH', body: { password } }),
   removeWorker: (id) => request(`/api/workers/${id}`, { method: 'DELETE' }),
 
   monthLogs: (year, month, userId) =>

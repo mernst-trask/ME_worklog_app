@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
@@ -12,6 +13,12 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import WorkersListScreen from './src/screens/WorkersListScreen';
 import WorkerDetailScreen from './src/screens/WorkerDetailScreen';
 import { colors } from './src/theme';
+
+const TAB_ICONS = {
+  LogWork: 'time-outline',
+  MyCalendar: 'calendar-outline',
+  Team: 'people-outline',
+};
 
 const Tab = createBottomTabNavigator();
 const TeamStack = createNativeStackNavigator();
@@ -48,11 +55,16 @@ function MainTabs() {
 
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerRight: () => <LogoutHeaderButton />,
         tabBarActiveTintColor: colors.teal,
         tabBarInactiveTintColor: colors.textMuted,
-      }}
+        tabBarIcon: ({ color, size, focused }) => {
+          const baseName = TAB_ICONS[route.name] || 'ellipse-outline';
+          const name = focused ? baseName.replace('-outline', '') : baseName;
+          return <Ionicons name={name} color={color} size={size} />;
+        },
+      })}
     >
       <Tab.Screen name="LogWork" component={LogWorkScreen} options={{ title: 'Log Work' }} />
       <Tab.Screen name="MyCalendar" component={MyCalendar} options={{ title: 'Calendar' }} />

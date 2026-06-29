@@ -9,7 +9,11 @@ async function request(path, { method = 'GET', body } = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers: {
-      'Content-Type': 'application/json',
+      // Only set this when there's a real body - on Android, React Native's
+      // networking layer can write a single stray byte as the body when
+      // Content-Type: application/json is set but there's nothing to send,
+      // which the backend then fails to parse as JSON.
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
       ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -32,8 +36,11 @@ export const api = {
   today: (userId) => request(`/api/worklogs/today${userId ? `?userId=${userId}` : ''}`),
   clockIn: () => request('/api/worklogs/clock-in', { method: 'POST' }),
   clockOut: () => request('/api/worklogs/clock-out', { method: 'POST' }),
-  manualEntry: (date, hours, notes) =>
+  addActivity: (date, hours, notes) =>
     request('/api/worklogs/manual', { method: 'POST', body: { date, hours, notes } }),
+  editEntry: (id, hours, notes) =>
+    request(`/api/worklogs/entry/${id}`, { method: 'PATCH', body: { hours, notes } }),
+  deleteEntry: (id) => request(`/api/worklogs/entry/${id}`, { method: 'DELETE' }),
 
   monthLogs: (year, month, userId) =>
     request(`/api/worklogs?year=${year}&month=${month}${userId ? `&userId=${userId}` : ''}`),

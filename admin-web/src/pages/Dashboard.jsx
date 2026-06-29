@@ -43,13 +43,22 @@ export default function Dashboard({ user, onLogout }) {
 
         <div
           className={`worker-item ${selectedId === null ? 'active' : ''}`}
-          onClick={() => setSelectedId(null)}
+          onClick={() => { setSelectedId(null); loadWorkers(); }}
           style={{ marginTop: 8 }}
         >
           <span>Team overview</span>
         </div>
 
-        <div className="nav-section-label">Workers ({workers.length})</div>
+        <div className="nav-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <span>Workers ({workers.length})</span>
+          <button
+            onClick={loadWorkers}
+            title="Refresh hours"
+            style={{ background: 'none', border: 'none', color: '#7d8290', cursor: 'pointer', fontSize: 11 }}
+          >
+            ↻ refresh
+          </button>
+        </div>
         <ul className="worker-list">
           {loadingWorkers ? (
             <li style={{ color: '#9aa0ad', fontSize: 13 }}>Loading…</li>
@@ -58,7 +67,7 @@ export default function Dashboard({ user, onLogout }) {
               <li
                 key={w.id}
                 className={`worker-item ${selectedId === w.id ? 'active' : ''}`}
-                onClick={() => setSelectedId(w.id)}
+                onClick={() => { setSelectedId(w.id); loadWorkers(); }}
               >
                 <span>{w.name}</span>
                 <span className="hours">{w.hoursThisMonth.toFixed(1)}h</span>
@@ -125,7 +134,7 @@ function AddWorkerModal({ onClose, onAdded }) {
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
       onClick={onClose}
@@ -145,6 +154,83 @@ function AddWorkerModal({ onClose, onAdded }) {
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-teal" disabled={busy}>{busy ? 'Adding…' : 'Add worker'}</button>
         </div>
+      </form>
+    </div>
+  );
+}
+
+function ResetPasswordModal({ worker, onClose, onDone }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    if (!password || password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.resetWorkerPassword(worker.id, password);
+      setDone(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={onClose}
+    >
+      <form
+        className="card"
+        style={{ width: 360, margin: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+      >
+        <h2 style={{ marginTop: 0, fontFamily: 'var(--font-display)' }}>Reset password</h2>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -8, marginBottom: 16 }}>
+          for {worker.name} ({worker.email})
+        </p>
+
+        {done ? (
+          <>
+            <p style={{ fontSize: 14 }}>
+              Password updated. Share the new password with {worker.name} directly — they'll use
+              it next time they log into the mobile app.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-primary" onClick={onDone}>Done</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {error ? <p className="error-text">{error}</p> : null}
+            <input
+              className="text-input"
+              placeholder="New password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+              <button type="submit" className="btn btn-teal" disabled={busy}>
+                {busy ? 'Saving…' : 'Set new password'}
+              </button>
+            </div>
+          </>
+        )}
       </form>
     </div>
   );
@@ -239,14 +325,16 @@ function TeamOverview({ workers, loading }) {
 function WorkerView({ worker, onRemoved }) {
   const [{ year, month }, setYearMonth] = useState(todayParts());
   const [logs, setLogs] = useState([]);
+  const [dailyCap, setDailyCap] = useState(10);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { logs: monthLogs } = await api.monthLogs(year, month, worker.id);
-      setLogs(monthLogs);
+      const data = await api.monthLogs(year, month, worker.id);
+      setLogs(data.logs);
+      setDailyCap(data.dailyCap || 10);
     } finally {
       setLoading(false);
     }
@@ -254,14 +342,21 @@ function WorkerView({ worker, onRemoved }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Group the flat list of entries into { date: { totalHours, entries } }
   const logsByDate = useMemo(() => {
     const map = {};
-    logs.forEach((l) => { map[l.work_date] = l; });
+    logs.forEach((entry) => {
+      if (!map[entry.work_date]) map[entry.work_date] = { totalHours: 0, entries: [] };
+      map[entry.work_date].entries.push(entry);
+      map[entry.work_date].totalHours += entry.hours || 0;
+    });
+    Object.values(map).forEach((d) => { d.totalHours = Math.round(d.totalHours * 100) / 100; });
     return map;
   }, [logs]);
 
   const totalHours = useMemo(() => logs.reduce((sum, l) => sum + (l.hours || 0), 0), [logs]);
-  const selectedLog = selectedDate ? logsByDate[selectedDate] : null;
+  const daysLogged = Object.keys(logsByDate).length;
+  const selectedDay = selectedDate ? logsByDate[selectedDate] : null;
 
   function shiftMonth(delta) {
     let m = month + delta;
@@ -271,6 +366,8 @@ function WorkerView({ worker, onRemoved }) {
     setYearMonth({ year: y, month: m });
     setSelectedDate(null);
   }
+
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   async function handleRemove() {
     if (!window.confirm(`Remove ${worker.name} and all their logged hours? This can't be undone.`)) return;
@@ -292,11 +389,22 @@ function WorkerView({ worker, onRemoved }) {
           >
             Export month CSV
           </button>
+          <button className="btn btn-secondary" onClick={() => setResettingPassword(true)}>
+            Reset password
+          </button>
           <button className="btn btn-secondary" style={{ color: 'var(--rose)' }} onClick={handleRemove}>
             Remove worker
           </button>
         </div>
       </div>
+
+      {resettingPassword && (
+        <ResetPasswordModal
+          worker={worker}
+          onClose={() => setResettingPassword(false)}
+          onDone={() => setResettingPassword(false)}
+        />
+      )}
 
       <div className="card">
         <div className="calendar-header">
@@ -323,18 +431,44 @@ function WorkerView({ worker, onRemoved }) {
             <div className="stat-label">Total this month</div>
           </div>
           <div>
-            <div className="stat">{logs.length}</div>
+            <div className="stat">{daysLogged}</div>
             <div className="stat-label">Days logged</div>
           </div>
         </div>
 
-        {selectedLog && (
+        {selectedDay && (
           <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
-            <strong>{selectedDate}</strong>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-              {selectedLog.hours ? `${selectedLog.hours}h logged` : 'No hours logged'}
-              {selectedLog.notes ? ` — ${selectedLog.notes}` : ''}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+              <strong>{selectedDate}</strong>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--teal)' }}>
+                {selectedDay.totalHours.toFixed(2)}h / {dailyCap}h
+              </span>
             </div>
+            {selectedDay.entries.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No hours logged this day.</div>
+            ) : (
+              selectedDay.entries.map((entry) => (
+                <div
+                  key={entry.id}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                    padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600 }}>
+                      {entry.clock_in && !entry.clock_out
+                        ? 'In progress'
+                        : entry.clock_in
+                        ? `${new Date(entry.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${new Date(entry.clock_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                        : 'Manual entry'}
+                    </div>
+                    {entry.notes ? <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{entry.notes}</div> : null}
+                  </div>
+                  {entry.hours ? <div className="num" style={{ fontFamily: 'var(--font-mono)' }}>{entry.hours}h</div> : null}
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>

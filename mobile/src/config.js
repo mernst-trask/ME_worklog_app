@@ -4,4 +4,4 @@
 // - Physical phone (Expo Go) on the same Wi-Fi as your computer:
 //     http://<your-computer's-LAN-IP>:4000   e.g. http://192.168.1.42:4000
 // - Production: your deployed backend URL, e.g. https://api.yourcompany.com
-export const API_BASE_URL = 'http://192.168.1.42:4000';
+export const API_BASE_URL = 'https://shiny-meme-wrqvjq46qp6j39rjg-4000.app.github.dev';

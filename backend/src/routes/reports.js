@@ -27,7 +27,7 @@ router.get('/', (req, res) => {
       .prepare(
         `SELECT u.id AS user_id, u.name, u.email,
                 COALESCE(SUM(w.hours), 0) AS total_hours,
-                COUNT(w.id) AS days_logged
+                COUNT(DISTINCT w.work_date) AS days_logged
          FROM users u
          LEFT JOIN work_logs w
            ON w.user_id = u.id AND w.work_date BETWEEN ? AND ?
@@ -72,9 +72,11 @@ router.get('/', (req, res) => {
           ];
 
     const csv = toCsv(rows, columns);
-    res.setHeader('Content-Type', 'text/csv');
+    // Leading BOM tells Excel this file is UTF-8, so accented characters
+    // (č, ř, š, ě, ...) render correctly instead of as garbled mojibake.
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="report_${from}_to_${to}.csv"`);
-    return res.send(csv);
+    return res.send('\uFEFF' + csv);
   }
 
   res.json({ from, to, rows });

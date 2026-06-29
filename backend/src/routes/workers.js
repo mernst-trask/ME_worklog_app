@@ -56,7 +56,23 @@ router.post('/', (req, res) => {
     worker: { id: result.lastInsertRowid, name: name.trim(), email: normalizedEmail },
   });
 });
+// PATCH /api/workers/:id/password  { password } -> manager resets a worker's password
+router.patch('/:id/password', (req, res) => {
+  const id = Number(req.params.id);
+  const { password } = req.body || {};
 
+  if (!password || password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  const worker = db.prepare(`SELECT id FROM users WHERE id = ? AND role = 'worker'`).get(id);
+  if (!worker) return res.status(404).json({ error: 'Worker not found' });
+
+  const password_hash = bcrypt.hashSync(password, 10);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(password_hash, id);
+
+  res.json({ ok: true });
+});
 // DELETE /api/workers/:id -> remove a worker account and their logs
 router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);

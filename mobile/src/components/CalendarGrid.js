@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radius } from '../theme';
 import { localDateStr } from '../utils/date';
+import { formatHM } from '../utils/format';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -24,7 +25,7 @@ function buildMonthGrid(year, month) {
   return cells;
 }
 
-// logsByDate: { 'YYYY-MM-DD': { hours, notes, ... } }
+// logsByDate: { 'YYYY-MM-DD': { totalHours, entries: [...] } }
 export default function CalendarGrid({ year, month, logsByDate, onDayPress, selectedDate }) {
   const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
   const todayStr = localDateStr();
@@ -44,8 +45,8 @@ export default function CalendarGrid({ year, month, logsByDate, onDayPress, sele
           if (day === null) return <View key={`b${idx}`} style={styles.cell} />;
 
           const dateStr = `${year}-${pad(month)}-${pad(day)}`;
-          const log = logsByDate[dateStr];
-          const hasHours = log && log.hours > 0;
+          const dayData = logsByDate[dateStr];
+          const hasHours = dayData && dayData.totalHours > 0;
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
 
@@ -58,10 +59,10 @@ export default function CalendarGrid({ year, month, logsByDate, onDayPress, sele
                 isToday && styles.cellToday,
                 isSelected && styles.cellSelected,
               ]}
-              onPress={() => onDayPress && onDayPress(dateStr, log)}
+              onPress={() => onDayPress && onDayPress(dateStr, dayData)}
             >
               <Text style={[styles.dayNum, hasHours && styles.dayNumFilled]}>{day}</Text>
-              {hasHours ? <Text style={styles.hoursLabel}>{log.hours}h</Text> : null}
+              {hasHours ? <Text style={styles.hoursLabel}>{formatHM(dayData.totalHours, { compact: true })}</Text> : null}
             </TouchableOpacity>
           );
         })}

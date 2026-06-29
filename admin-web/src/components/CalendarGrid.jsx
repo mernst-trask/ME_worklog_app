@@ -35,8 +35,8 @@ export default function CalendarGrid({ year, month, logsByDate, selectedDate, on
           if (day === null) return <div key={`b${idx}`} className="day-cell empty" />;
 
           const dateStr = `${year}-${pad(month)}-${pad(day)}`;
-          const log = logsByDate[dateStr];
-          const hasHours = log && log.hours > 0;
+          const dayData = logsByDate[dateStr];
+          const hasHours = dayData && dayData.totalHours > 0;
           const classes = ['day-cell'];
           if (hasHours) classes.push('filled');
           if (dateStr === todayStr) classes.push('today');
@@ -46,10 +46,10 @@ export default function CalendarGrid({ year, month, logsByDate, selectedDate, on
             <div
               key={dateStr}
               className={classes.join(' ')}
-              onClick={() => onDayPress && onDayPress(dateStr, log)}
+              onClick={() => onDayPress && onDayPress(dateStr, dayData)}
             >
               <span className="day-num">{day}</span>
-              {hasHours ? <span className="day-hours">{log.hours}h</span> : null}
+              {hasHours ? <span className="day-hours">{dayData.totalHours}h</span> : null}
             </div>
           );
         })}
