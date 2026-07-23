@@ -1,0 +1,19 @@
+.github/workflows/keep-supabase-alive.yml
+
+
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # každý den v 6:00 UTC
+  workflow_dispatch:        # možnost spustit i ručně
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -s -o /dev/null -w "HTTP status: %{http_code}\n" \
+            "https://xuaqhnfusaiocainrzou.supabase.co/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}"
